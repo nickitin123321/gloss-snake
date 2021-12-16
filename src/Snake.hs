@@ -8,7 +8,7 @@ module Snake
     generateNewFood,
     initialGameState,
     move,
-    Square,
+    Point,
     cols,
     rows,
     (+:),
@@ -18,9 +18,9 @@ where
 import Data.Map (Map, fromList, (!))
 import System.Random (Random (randomR), StdGen, mkStdGen)
 
-type Square = (Int, Int)
+type Point = (Int, Int)
 
-type Snake = [Square]
+type Snake = [Point]
 
 data Direction = UP | DOWN | LEFT | RIGHT deriving (Eq, Ord)
 
@@ -38,7 +38,7 @@ directionVectorMap = fromList [(UP, (0, - step)), (DOWN, (0, step)), (LEFT, (- s
   where
     step = 1
 
-move :: Square -> Direction -> Snake -> (Bool, Snake)
+move :: Point -> Direction -> Snake -> (Bool, Snake)
 move food direction snake =
   if wasFoodEaten
     then (True, newHead : snake)
@@ -64,7 +64,7 @@ checkGameOver snake =
     (headX, headY) = head'
     tail' = tail snake
 
-generateNewFood :: Snake -> StdGen -> (Square, StdGen)
+generateNewFood :: Snake -> StdGen -> (Point, StdGen)
 generateNewFood snake stdGen =
   if newFood `elem` snake
     then generateNewFood snake stdGen3
@@ -76,7 +76,7 @@ generateNewFood snake stdGen =
 
 data GameState = GameState
   { getSnake :: Snake,
-    getFood :: Square,
+    getFood :: Point,
     getDirection :: Direction,
     isGameOver :: Bool,
     getRandomStdGen :: StdGen,

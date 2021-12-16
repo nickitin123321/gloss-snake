@@ -4,7 +4,7 @@ import Snake
   ( Direction (..),
     GameState (..),
     Snake,
-    Square,
+    Point,
     changeDirection,
     checkGameOver,
     cols,
@@ -15,9 +15,9 @@ import Snake
     (+:),
   )
 
-type Path = [Square]
+type Path = [Point]
 
-type ClosedPath = [Square]
+type ClosedPath = [Point]
 
 data PathDirection = DirFromHead | DirFromTail deriving (Eq)
 
@@ -52,16 +52,16 @@ initWalls = ((0, 0), (32, 32))
 clockwise :: [Direction]
 clockwise = [UP, DOWN, LEFT, RIGHT]
 
-wallsFirstPoint :: Square
+wallsFirstPoint :: Point
 wallsFirstPoint = (cols + 1, rows + 1)
 
-isPathContain :: Path -> Square -> Bool
+isPathContain :: Path -> Point -> Bool
 isPathContain path point = any (== point) path
 
-distBetweenPoints :: Square -> Square -> Int
+distBetweenPoints :: Point -> Point -> Int
 distBetweenPoints (x1, y1) (x2, y2) = abs (x1 - x2) + abs (y1 - y2)
 
-getHamPath :: Square -> ClosedPath -> ClosedPath
+getHamPath :: Point -> ClosedPath -> ClosedPath
 getHamPath currentPoint hamPath
   | hamPathCapacity initWalls == length (currentPoint : hamPath)
       && distBetweenPoints currentPoint (last hamPath) == 1 =
@@ -71,7 +71,7 @@ getHamPath currentPoint hamPath
     newPoint = nextHamPathPoint (currentPoint : hamPath) clockwise
     hamPathCapacity ((x1, y1), (x2, y2)) = (x2 - x1 - 1) * (y2 - y1 - 1)
 
-nextHamPathPoint :: Path -> [Direction] -> Square
+nextHamPathPoint :: Path -> [Direction] -> Point
 nextHamPathPoint _ [] = error "incorrect initWalls"
 nextHamPathPoint hamPath (dir : dirs)
   | isPathContain hamPath virtualPoint
