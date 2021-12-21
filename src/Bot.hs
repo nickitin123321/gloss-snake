@@ -1,83 +1,81 @@
-module Bot (botControlDirection, getHamPath, wallsFirstPoint) where
+module Bot (nextDirOnPath, PathDirection (DirFromHead, DirFromTail)) where
 
 import Snake
-  ( Direction (..),
+  ( ClosedPath,
+    Direction (..),
     GameState (..),
-    Snake,
     Point,
+    Snake,
     changeDirection,
     checkGameOver,
     cols,
     generateNewFood,
     initialGameState,
+    isPathContain,
     move,
     rows,
     (+:),
   )
 
-type Path = [Point]
+data PathDirection = DirFromHead | DirFromTail deriving (Eq, Show)
 
-type ClosedPath = [Point]
+-- botControlDirection :: GameState -> Direction
+-- botControlDirection gameState
+--   | foodX == headX = if foodY > headY then DOWN else UP
+--   | foodY == headY = if foodX > headX then RIGHT else LEFT
+--   | headX == cols - stepBeforeWall && snakeX /= cols - stepBeforeWall
+--       || headY == rows - stepBeforeWall && snakeY /= rows - stepBeforeWall
+--       || headY == stepBeforeWall && snakeY /= stepBeforeWall
+--       || headX == stepBeforeWall && snakeX /= stepBeforeWall =
+--     --
+--     case direction of
+--       LEFT -> if headY == rows - stepBeforeWall then UP else DOWN
+--       UP -> if headX == stepBeforeWall then RIGHT else LEFT
+--       RIGHT -> if headY == stepBeforeWall then DOWN else UP
+--       DOWN -> if headY == rows - stepBeforeWall then LEFT else RIGHT
+--   | otherwise = direction
+--   where
+--     snake = getSnake gameState
+--     direction = getDirection gameState
+--     (foodX, foodY) = getFood gameState
+--     head' = head snake
+--     (headX, headY) = head'
+--     (snakeX, snakeY) = head $ tail snake
+--     stepBeforeWall = 1
+--     nextHead = (1, 1) +: head'
 
-data PathDirection = DirFromHead | DirFromTail deriving (Eq)
+-- botControlDirection :: GameState -> Direction
+-- botControlDirection gameState = dir
+--   where
+--     snake = getSnake gameState
+--     ham = if botPathDir == DirFromTail then hamPath gameState else reverse $ hamPath gameState
+--     (dir, botPathDir) = nextDirOnPath snake ham
 
-botControlDirection :: GameState -> Direction
-botControlDirection gameState
-  | foodX == headX = if foodY > headY then DOWN else UP
-  | foodY == headY = if foodX > headX then RIGHT else LEFT
-  | headX == cols - stepBeforeWall && snakeX /= cols - stepBeforeWall
-      || headY == rows - stepBeforeWall && snakeY /= rows - stepBeforeWall
-      || headY == stepBeforeWall && snakeY /= stepBeforeWall
-      || headX == stepBeforeWall && snakeX /= stepBeforeWall =
-    --
-    case direction of
-      LEFT -> if headY == rows - stepBeforeWall then UP else DOWN
-      UP -> if headX == stepBeforeWall then RIGHT else LEFT
-      RIGHT -> if headY == stepBeforeWall then DOWN else UP
-      DOWN -> if headY == rows - stepBeforeWall then LEFT else RIGHT
-  | otherwise = direction
+pointNeighborsOnPath :: Point -> ClosedPath -> (Point, Point)
+pointNeighborsOnPath point path
+  | not $ isPathContain path point || length path < 4 = error "incorrect initWalls"
+  | point == head path = (last path, head $ tail path)
+  | point == last path = (last $ init path, head path)
+  | otherwise = _pointNeighborsOnPath point path
   where
-    snake = getSnake gameState
-    direction = getDirection gameState
-    (foodX, foodY) = getFood gameState
-    head' = head snake
-    (headX, headY) = head'
-    (snakeX, snakeY) = head $ tail snake
-    stepBeforeWall = 1
-    nextHead = (1, 1) +: head'
+    _pointNeighborsOnPath point (a : b : c : xs) =
+      if point == b
+        then (a, c)
+        else _pointNeighborsOnPath point (b : c : xs)
 
-initWalls :: ((Int, Int), (Int, Int))
-initWalls = ((0, 0), (32, 32))
-
-clockwise :: [Direction]
-clockwise = [UP, DOWN, LEFT, RIGHT]
-
-wallsFirstPoint :: Point
-wallsFirstPoint = (cols + 1, rows + 1)
-
-isPathContain :: Path -> Point -> Bool
-isPathContain path point = any (== point) path
-
-distBetweenPoints :: Point -> Point -> Int
-distBetweenPoints (x1, y1) (x2, y2) = abs (x1 - x2) + abs (y1 - y2)
-
-getHamPath :: Point -> ClosedPath -> ClosedPath
-getHamPath currentPoint hamPath
-  | hamPathCapacity initWalls == length (currentPoint : hamPath)
-      && distBetweenPoints currentPoint (last hamPath) == 1 =
-    currentPoint : hamPath
-  | otherwise = getHamPath newPoint (currentPoint : hamPath)
+nextDirOnPath :: Snake -> ClosedPath -> (Direction, PathDirection)
+nextDirOnPath (snakeHead : snakeTail) path
+  | snakeTail == [] = (dirBetweenPoints snakeHead point1, DirFromTail)
+  | point1 == head snakeTail = (dirBetweenPoints snakeHead point2, DirFromHead)
+  | otherwise = (dirBetweenPoints snakeHead point1, DirFromTail)
   where
-    newPoint = nextHamPathPoint (currentPoint : hamPath) clockwise
-    hamPathCapacity ((x1, y1), (x2, y2)) = (x2 - x1 - 1) * (y2 - y1 - 1)
+    (point1, point2) = pointNeighborsOnPath snakeHead path
 
-nextHamPathPoint :: Path -> [Direction] -> Point
-nextHamPathPoint _ [] = error "incorrect initWalls"
-nextHamPathPoint hamPath (dir : dirs)
-  | isPathContain hamPath virtualPoint
-      || checkGameOver virtualPath =
-    nextHamPathPoint hamPath dirs
-  | otherwise = virtualPoint
-  where
-    (_, virtualPath) = move (3, 3) DOWN hamPath
-    virtualPoint = head virtualPath
+dirBetweenPoints :: Point -> Point -> Direction
+dirBetweenPoints (x1, y1) (x2, y2)
+  | x1 == x2 = if y1 > y2 then UP else DOWN
+  | y1 == y2 = if x1 > x2 then LEFT else RIGHT
+  | otherwise =
+    if abs (x1 - x2) < abs (y1 - y2)
+      then dirBetweenPoints (x1, 0) (x2, 0)
+      else dirBetweenPoints (0, y1) (0, y2)

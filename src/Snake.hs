@@ -2,6 +2,7 @@ module Snake
   ( Direction (..),
     GameState (..),
     Snake,
+    ClosedPath,
     changeDirection,
     changeMode,
     checkGameOver,
@@ -12,6 +13,9 @@ module Snake
     cols,
     rows,
     (+:),
+    isPathContain,
+    firstWallsPoint,
+    getHamPath,
   )
 where
 
@@ -22,7 +26,7 @@ type Point = (Int, Int)
 
 type Snake = [Point]
 
-data Direction = UP | DOWN | LEFT | RIGHT deriving (Eq, Ord)
+data Direction = UP | DOWN | LEFT | RIGHT deriving (Eq, Ord, Show)
 
 (+:) :: (Int, Int) -> (Int, Int) -> (Int, Int)
 (a, b) +: (c, d) = (a + c, b + d)
@@ -32,6 +36,12 @@ cols = 32
 
 rows :: Int
 rows = 24
+
+initWalls :: ((Int, Int), (Int, Int))
+initWalls = ((1, 1), (cols, rows))
+
+clockwise :: [Direction]
+clockwise = [UP, RIGHT, DOWN, LEFT]
 
 directionVectorMap :: Map Direction (Int, Int)
 directionVectorMap = fromList [(UP, (0, - step)), (DOWN, (0, step)), (LEFT, (- step, 0)), (RIGHT, (step, 0))]
@@ -54,9 +64,9 @@ move food direction snake =
 -- If head in tail or walls, then true.
 checkGameOver :: Snake -> Bool
 checkGameOver snake =
-  headX == 0
+  headX == 1
+    || headY == 1
     || headX == cols
-    || headY == 0
     || headY == rows
     || head' `elem` tail'
   where
@@ -70,8 +80,8 @@ generateNewFood snake stdGen =
     then generateNewFood snake stdGen3
     else (newFood, stdGen3)
   where
-    (foodX, stdGen2) = randomR (1, cols - 1) stdGen
-    (foodY, stdGen3) = randomR (1, rows - 1) stdGen2
+    (foodX, stdGen2) = randomR (2, cols - 1) stdGen
+    (foodY, stdGen3) = randomR (2, rows - 1) stdGen2
     newFood = (foodX, foodY)
 
 data GameState = GameState
@@ -80,7 +90,8 @@ data GameState = GameState
     getDirection :: Direction,
     isGameOver :: Bool,
     getRandomStdGen :: StdGen,
-    isBotMode :: Bool
+    isBotMode :: Bool,
+    hamGetter :: ClosedPath
   }
 
 changeDirection :: GameState -> Direction -> GameState
@@ -90,13 +101,16 @@ changeDirection gameState newDir =
     || direction == LEFT && newDir == RIGHT
     || direction == RIGHT && newDir == LEFT
     then gameState
-    else GameState snake square newDir isGameOver stdGen botMode
+    else GameState snake square newDir isGameOver stdGen botMode ham
   where
-    (GameState snake square direction isGameOver stdGen botMode) = gameState
+    (GameState snake square direction isGameOver stdGen botMode ham) = gameState
 
 changeMode :: GameState -> Bool -> GameState
-changeMode (GameState snake square direction isGameOver stdGen botMode) newBotMode =
-  GameState snake square direction isGameOver stdGen newBotMode
+changeMode (GameState snake square direction isGameOver stdGen botMode ham) newBotMode =
+  GameState snake square direction isGameOver stdGen newBotMode ham
+
+firstWallsPoint :: (Int, Int)
+firstWallsPoint = (2, 2)
 
 initialGameState :: Bool -> GameState
 initialGameState gameOver =
@@ -109,8 +123,46 @@ initialGameState gameOver =
       getDirection = DOWN,
       isGameOver = gameOver,
       getRandomStdGen = randomStdGen,
-      isBotMode = True
+      isBotMode = True,
+      hamGetter = getHamPath firstWallsPoint []
     }
   where
     randomStdGen = mkStdGen 100
     (snakeX, snakeY) = (5, 5)
+
+type Path = [Point]
+
+type ClosedPath = [Point]
+
+collisionWall :: (Ord a1, Ord a2) => (a1, a2) -> ((a1, a2), (a1, a2)) -> Bool
+collisionWall (sx, sy) ((wx1, wy1), (wx2, wy2)) =
+  sx <= wx1 || sx >= wx2 || sy <= wy1 || sy >= wy2
+
+getHamPath :: Point -> ClosedPath -> ClosedPath
+getHamPath currentPoint hamPath
+  | hamPathCapacity initWalls == length (currentPoint : hamPath)
+      && distBetweenPoints currentPoint (last hamPath) == 1 =
+    currentPoint : hamPath
+  | otherwise = getHamPath newPoint (currentPoint : hamPath)
+  where
+    newPoint = nextHamPathPoint (currentPoint : hamPath) clockwise
+    hamPathCapacity ((x1, y1), (x2, y2)) = (x2 - x1 - 1) * (y2 - y1 - 1)
+
+nextHamPathPoint :: Path -> [Direction] -> Point
+nextHamPathPoint _ [] = error "incorrect initWalls"
+nextHamPathPoint hamPath (dir : dirs)
+  | isPathContain hamPath virtualPoint
+      || collisionWall virtualPoint initWalls =
+    nextHamPathPoint hamPath dirs
+  | otherwise = virtualPoint
+  where
+    virtualPoint = directionVectorMap ! dir +: head hamPath
+
+-- isPathContain :: Path -> Point -> Bool
+-- isPathContain path point = point `elem` path
+
+isPathContain :: Path -> Point -> Bool
+isPathContain path point = point `elem` path
+
+distBetweenPoints :: Point -> Point -> Int
+distBetweenPoints (x1, y1) (x2, y2) = abs (x1 - x2) + abs (y1 - y2)

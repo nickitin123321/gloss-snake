@@ -1,7 +1,8 @@
 module Main where
 
 import Bot
-  ( botControlDirection,
+  ( PathDirection (DirFromHead, DirFromTail),
+    nextDirOnPath,
   )
 import Data.Char
 import Graphics.Gloss
@@ -47,13 +48,15 @@ import Snake
     changeDirection,
     changeMode,
     checkGameOver,
+    firstWallsPoint,
     generateNewFood,
+    getHamPath,
     initialGameState,
     move,
   )
 
 window :: Display
-window = InWindow "Haskell Snake Game" (700, 560) (100, 100)
+window = InWindow "Haskell Snake Game" (720, 560) (100, 100)
 
 background :: Color
 background = white
@@ -61,10 +64,14 @@ background = white
 render :: GameState -> Picture
 render gameState =
   pictures $
-    [ fillRectangle black (16, 0) (640, 20),
+    [ -- Top wall.
+      fillRectangle black (16, 1) (640, 20),
+      -- Bottom wall.
       fillRectangle black (16, 24) (640, 20),
-      fillRectangle black (0, 12) (20, 480),
-      fillRectangle black (32, 12) (20, 480)
+      -- Left wall.
+      fillRectangle black (1, 12) (20, 460),
+      -- Right wall.
+      fillRectangle black (32, 12) (20, 460)
     ]
       ++ fmap (convertToPicture green) tail'
       ++ [convertToPicture blue head']
@@ -86,19 +93,19 @@ render gameState =
             rectangleSolid w h
     toFloat (x, y) = (fromIntegral x, fromIntegral y)
     foodCounterPicture =
-      [ translate 150 200 $scale 0.2 0.2 $ text "Snake length:",
-        translate 250 200 $scale 0.2 0.2 $ text . show $ length snake
+      [ translate 80 150 $scale 0.2 0.2 $ text "Snake length:",
+        translate 250 150 $scale 0.2 0.2 $ text . show $ length snake
       ]
     modePicture =
       if isBotMode gameState
         then
           [ translate 100 100 $scale 0.2 0.2 $
-              text "Bot"
+              text "Mode: Bot"
           ]
         else
           [ translate 100 100 $scale 0.2 0.2 $
               text
-                "Player"
+                "Mode: Player"
           ]
     gameOverPicture =
       if isGameOver gameState
@@ -120,17 +127,16 @@ update :: Float -> GameState -> GameState
 update seconds gameState =
   if gameOver
     then gameState
-    else GameState newSnake newFood' direction newGameOver newStdGen botGameMode
+    else GameState newSnake newFood' direction newGameOver newStdGen botGameMode ham
   where
     snake = getSnake gameState
     food = getFood gameState
     botGameMode = isBotMode gameState
-    direction =
-      if botGameMode
-        then botControlDirection gameState
-        else getDirection gameState
+    ham = if botPathDir == DirFromTail then hamGetter gameState else reverse $ hamGetter gameState
+    direction = if botGameMode then botStepDir else getDirection gameState
     gameOver = isGameOver gameState
     stdGen = getRandomStdGen gameState
+    (botStepDir, botPathDir) = nextDirOnPath snake ( hamGetter gameState )
     (wasFoodEaten, newSnake) = move food direction snake
     (newFood, newStdGen) = generateNewFood newSnake stdGen
     newFood' =
@@ -144,7 +150,7 @@ handleKeys (EventKey (SpecialKey KeyLeft) Down _ _) gameState = changeDirection 
 handleKeys (EventKey (SpecialKey KeyRight) Down _ _) gameState = changeDirection gameState RIGHT
 handleKeys (EventKey (SpecialKey KeyUp) Down _ _) gameState = changeDirection gameState UP
 handleKeys (EventKey (SpecialKey KeyDown) Down _ _) gameState = changeDirection gameState DOWN
-handleKeys (EventKey (SpecialKey KeyEnter) Down _ _) gameState = changeMode gameState $ not (isBotMode gameState)
+handleKeys (EventKey (SpecialKey KeyEnter) Down _ _) gameState = changeMode gameState $ not $ isBotMode gameState
 handleKeys (EventKey (SpecialKey KeySpace) Down _ _) gameState =
   if isGameOver gameState
     then initialGameState False
