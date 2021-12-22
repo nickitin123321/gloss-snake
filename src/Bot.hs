@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 module Bot (nextDirOnPath, PathDirection (DirFromHead, DirFromTail)) where
 
 import Snake
@@ -58,14 +59,13 @@ pointNeighborsOnPath point path
   | point == last path = (last $ init path, head path)
   | otherwise = _pointNeighborsOnPath point path
   where
-    _pointNeighborsOnPath point (a : b : c : xs) =
-      if point == b
-        then (a, c)
-        else _pointNeighborsOnPath point (b : c : xs)
+    _pointNeighborsOnPath point (a : b : c : xs)
+      | point == b = (a, c)
+      | otherwise = _pointNeighborsOnPath point (b : c : xs)
 
 nextDirOnPath :: Snake -> ClosedPath -> (Direction, PathDirection)
 nextDirOnPath (snakeHead : snakeTail) path
-  | snakeTail == [] = (dirBetweenPoints snakeHead point1, DirFromTail)
+  | null snakeTail = (dirBetweenPoints snakeHead point1, DirFromTail)
   | point1 == head snakeTail = (dirBetweenPoints snakeHead point2, DirFromHead)
   | otherwise = (dirBetweenPoints snakeHead point1, DirFromTail)
   where

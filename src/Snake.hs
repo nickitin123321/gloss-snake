@@ -26,8 +26,10 @@ type Point = (Int, Int)
 
 type Snake = [Point]
 
+-- Enum of directions.
 data Direction = UP | DOWN | LEFT | RIGHT deriving (Eq, Ord, Show)
 
+-- Operator increases tuple values.
 (+:) :: (Int, Int) -> (Int, Int) -> (Int, Int)
 (a, b) +: (c, d) = (a + c, b + d)
 
@@ -123,20 +125,19 @@ initialGameState gameOver =
       getDirection = DOWN,
       isGameOver = gameOver,
       getRandomStdGen = randomStdGen,
-      isBotMode = True,
+      isBotMode = False,
       hamGetter = getHamPath firstWallsPoint []
     }
   where
     randomStdGen = mkStdGen 100
     (snakeX, snakeY) = (5, 5)
 
-type Path = [Point]
-
-type ClosedPath = [Point]
-
+-- Checks collision snake with wall.
 collisionWall :: (Ord a1, Ord a2) => (a1, a2) -> ((a1, a2), (a1, a2)) -> Bool
 collisionWall (sx, sy) ((wx1, wy1), (wx2, wy2)) =
   sx <= wx1 || sx >= wx2 || sy <= wy1 || sy >= wy2
+
+type ClosedPath = [Point]
 
 getHamPath :: Point -> ClosedPath -> ClosedPath
 getHamPath currentPoint hamPath
@@ -147,6 +148,8 @@ getHamPath currentPoint hamPath
   where
     newPoint = nextHamPathPoint (currentPoint : hamPath) clockwise
     hamPathCapacity ((x1, y1), (x2, y2)) = (x2 - x1 - 1) * (y2 - y1 - 1)
+
+type Path = [Point]
 
 nextHamPathPoint :: Path -> [Direction] -> Point
 nextHamPathPoint _ [] = error "incorrect initWalls"
@@ -159,7 +162,7 @@ nextHamPathPoint hamPath (dir : dirs)
     virtualPoint = directionVectorMap ! dir +: head hamPath
 
 -- isPathContain :: Path -> Point -> Bool
--- isPathContain path point = point `elem` path
+-- isPathContain path point = any( ==point ) path
 
 isPathContain :: Path -> Point -> Bool
 isPathContain path point = point `elem` path

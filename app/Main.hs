@@ -65,13 +65,15 @@ render :: GameState -> Picture
 render gameState =
   pictures $
     [ -- Top wall.
-      fillRectangle black (16, 1) (640, 20),
+      fillRectangle black (17, 1) (620, 20),
       -- Bottom wall.
-      fillRectangle black (16, 24) (640, 20),
+      fillRectangle black (17, 24) (620, 20),
       -- Left wall.
       fillRectangle black (1, 12) (20, 460),
       -- Right wall.
       fillRectangle black (32, 12) (20, 460)
+      ,
+      fillRectangle black (1, 24) (20, 20)
     ]
       ++ fmap (convertToPicture green) tail'
       ++ [convertToPicture blue head']
@@ -86,26 +88,30 @@ render gameState =
     food = getFood gameState
     convertToPicture :: Color -> (Int, Int) -> Picture
     convertToPicture color' (x, y) = fillRectangle color' (toFloat (x, y)) (20, 20)
-    fillRectangle color' (tx, ty) (w, h) =
+    fillRectangle :: Color -> (Float, Float) -> (Float, Float) -> Picture
+    fillRectangle color' (tx, ty) (width, height) =
       color color' $
         scale 1 (-1) $
           translate (tx * 20 - 320) (ty * 20 - 240) $
-            rectangleSolid w h
+            rectangleSolid width height
     toFloat (x, y) = (fromIntegral x, fromIntegral y)
     foodCounterPicture =
-      [ translate 80 150 $scale 0.2 0.2 $ text "Snake length:",
-        translate 250 150 $scale 0.2 0.2 $ text . show $ length snake
+      [ translate 80 150 $ scale 0.2 0.2 $ text "Snake length:",
+        translate 250 150 $ scale 0.2 0.2 $ text $ show snakeLength
       ]
+    snakeLength = length snake
     modePicture =
       if isBotMode gameState
         then
-          [ translate 100 100 $scale 0.2 0.2 $
-              text "Mode: Bot"
+          [ translate 100 100 $
+              scale 0.2 0.2 $
+                text "Mode: Bot"
           ]
         else
-          [ translate 100 100 $scale 0.2 0.2 $
-              text
-                "Mode: Player"
+          [ translate 100 100 $
+              scale 0.2 0.2 $
+                text
+                  "Mode: Player"
           ]
     gameOverPicture =
       if isGameOver gameState
@@ -136,7 +142,7 @@ update seconds gameState =
     direction = if botGameMode then botStepDir else getDirection gameState
     gameOver = isGameOver gameState
     stdGen = getRandomStdGen gameState
-    (botStepDir, botPathDir) = nextDirOnPath snake ( hamGetter gameState )
+    (botStepDir, botPathDir) = nextDirOnPath snake (hamGetter gameState)
     (wasFoodEaten, newSnake) = move food direction snake
     (newFood, newStdGen) = generateNewFood newSnake stdGen
     newFood' =
